@@ -1,1 +1,1 @@
-# Reinforcement-learning-foundations
+# ReinforcementLearning-Foundations
