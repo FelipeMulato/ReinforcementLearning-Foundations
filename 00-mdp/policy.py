@@ -31,3 +31,19 @@ def policy_improvement(V,P, gamma=1.0):
                                     np.argmax(Q,axis=1))}[s]
     
     return new_pi 
+
+def policy_iteration(P,gamma=1.0,theta=1e-10):
+    random_actions = np.random.choice(
+                                tuple(P[0].keys()),len(P))
+    pi = lambda s:{s:a for s, in enumerate(
+                             random_actions)}[s]
+    while True:
+        old_pi = {s:pi(s) for s in range(len(P))}
+
+        V = policy_evaluation(pi,p,gamma,theta)
+
+        pi = policy_improvement(V,P,gamma)
+
+        if old_pi == {s:pi(s) for s in range(len(P))}:
+            break
+    return V,pi
