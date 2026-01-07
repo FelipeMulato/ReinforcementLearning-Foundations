@@ -47,3 +47,23 @@ def policy_iteration(P,gamma=1.0,theta=1e-10):
         if old_pi == {s:pi(s) for s in range(len(P))}:
             break
     return V,pi
+
+
+def value_iteration(P,gamma=1.0, theta=1e-10):
+    V = np.zeros(len(P),dytpe=np.float64)
+
+    while True:
+        Q = np.zeros((len(p),len(p[0])),dytpe=np.float64)
+        for s in range(len(p)):
+            for a in range(len(P[s])):
+                for prob, next_state, reward, done in P[s][a]:
+                    Q[s][a] += prob*(reward +gamma*\
+                                 V[next_state]*(not done))
+        if np.max(np.abs(V-np.max(Q,axis=1))) < theta:
+            break
+        V = np.max(Q,axis=1)
+    
+    pi = lambda s: {s: a for s,a in enumerate(
+                                    np.argmax(Q,axis=1))}[s]
+    
+    return V,pi
