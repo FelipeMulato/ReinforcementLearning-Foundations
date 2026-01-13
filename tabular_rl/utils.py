@@ -17,3 +17,24 @@ def decay_schedule(init_value,min_value,
 
     return values
 
+""" This fuction allows to run a policy and extrat 
+    the trajectory
+"""
+
+def generate_trajectory(policy, env, max_steps=20):
+    trajectory = []
+    state, info = env.reset()
+    
+    for t in range(max_steps):
+        action = policy[state]
+        next_state, reward, terminated, truncated, info = env.step(action)
+
+        trajectory. append((state,action,reward,next_state,(terminated or truncated)))
+        
+
+        state = next_state
+
+        if terminated or truncated:
+            break
+    
+    return trajectory
