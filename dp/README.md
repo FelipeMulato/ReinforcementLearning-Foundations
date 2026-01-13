@@ -51,33 +51,8 @@ The file `experiments.py` contains structured experiments for:
 
 ---
 
-## 🚀 How to Run
 
-```bash
-python experiments.py
-This will execute:
-
-Policy Evaluation for multiple policies
-
-Policy Iteration
-
-Value Iteration
-on the selected MDPs and print the results in tabular form.
-
-Example Output
-
-State | V(pi_0) | V(pi_1)
-    0 |  -2.345 |   1.234
-    1 |  -1.876 |   2.567
-    2 |  -5.000 |  -3.210
-...
-
-State | pi(s) | V(s)
-    0 |   1   |  2.345
-    1 |   1   |  3.876
-    2 |   0   | -1.234
-
-Learning Objectives
+## Learning Objectives
 This project aims to:
 
 Develop deep intuition about Bellman equations
@@ -90,13 +65,7 @@ Analyze the influence of the discount factor (γ)
 
 Build a strong foundation for advanced RL topics and research
 
-🛠 Project Structure
-.
-├── policy.py        # DP algorithms (policy evaluation, iteration, value iteration)
-├── mdp.py           # MDP definitions
-├── experiments.py   # Structured experiments and comparisons
-└── README.md
 
-Notes
+## Notes
 This repository is intentionally kept minimal and explicit to emphasize clarity and understanding over abstraction.
 The goal is not performance, but conceptual mastery.
