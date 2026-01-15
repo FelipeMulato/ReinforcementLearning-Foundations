@@ -26,7 +26,7 @@ def generate_trajectory(policy, env, max_steps=20):
     state, info = env.reset()
     
     for t in range(max_steps):
-        action = policy[state]
+        action = policy(state)
         next_state, reward, terminated, truncated, info = env.step(action)
 
         trajectory.append((state,action,reward,next_state,(terminated or truncated)))
