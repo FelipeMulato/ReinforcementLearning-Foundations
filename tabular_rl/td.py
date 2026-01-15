@@ -1,5 +1,5 @@
 import numpy as np
-from utils import decay_schedule
+from tabular_rl.utils import decay_schedule
 
 def td_prediction(pi,env,
         gamma=1.0,
@@ -21,7 +21,7 @@ def td_prediction(pi,env,
         state, info  = env.reset()
         for t in range(max_steps):
 
-            action = pi[state]
+            action = pi(state)
 
             next_state,reward, terminated, truncated, info = env.step(action)
 
@@ -69,7 +69,7 @@ def n_step_td_prediction(pi,env,
         t = 0
         while True:
             if t < T:
-                action = pi[state]
+                action = pi(state)
                 next_state, reward, terminated, truncated, info = env.step(action)
 
                 rewards.append(reward)
