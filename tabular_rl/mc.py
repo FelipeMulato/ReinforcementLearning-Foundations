@@ -1,5 +1,5 @@
 import numpy as np
-from utils import decay_schedule,generate_trajectory
+from tabular_rl.utils import decay_schedule,generate_trajectory
 def mc_prediciton(pi,env,
                   gamma=1.0,
                   init_alpha=0.5,
