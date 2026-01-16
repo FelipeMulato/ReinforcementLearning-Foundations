@@ -8,39 +8,41 @@ from tabular_rl.td import td_prediction
 def moving_average(x, window=100):
     return np.convolve(x, np.ones(window)/window, mode="valid")
 
-def safe_policy(state):
-    #Mapeamento manual para FrozenLake
-    policy_map = {
-        0: 2,  
-        1: 2,  
-        2: 1,  
+def goal_directed_eps_policy(env, eps=0.1):
+    nrow, ncol = env.unwrapped.nrow, env.unwrapped.ncol
+    goal = nrow * ncol - 1  
+    def pi(state):
+        if np.random.rand() < eps:
+            return env.action_space.sample()
 
-        4: 1,  
-        6: 1,  
+        r, c = divmod(state, ncol)
+        gr, gc = divmod(goal, ncol)
 
-        8: 2,  
-        10: 1, 
+        if c < gc:
+            return 2  
+        if r < gr:
+            return 1  
+        if c > gc:
+            return 0 
+        return 3      
 
-        13: 2, 
-        14: 2 
-    }
-
-    return policy_map.get(state, 1)  # default: Down
+    return pi
 if __name__ == "__main__":
     env = gym.make("FrozenLake-v1", is_slippery=True)
 
+    pi = goal_directed_eps_policy(env, eps=0.2)
     n_episodes = 10000
     gamma = 0.9
 
     V_mc, V_mc_track = mc_prediciton(
-        pi= safe_policy,
+        pi= pi,
         env = env,
         gamma= gamma,
         n_episodes=n_episodes
     )
 
     V_td, V_td_track = td_prediction(
-        pi=  safe_policy,
+        pi=  pi,
         env = env,
         gamma= gamma,
         n_episodes= n_episodes
