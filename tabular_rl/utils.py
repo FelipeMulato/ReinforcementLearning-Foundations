@@ -21,7 +21,7 @@ def decay_schedule(init_value,min_value,
     the trajectory
 """
 
-def generate_trajectory(policy, env, max_steps=20):
+def generate_trajectory_prediction(policy, env, max_steps=20):
     trajectory = []
     state, info = env.reset()
     
@@ -38,3 +38,21 @@ def generate_trajectory(policy, env, max_steps=20):
             break
     
     return trajectory
+
+def generate_trajectory_control(policy, Q, epsilon, env, max_steps=20):
+    
+    trajectory = []
+
+    state, info = env.reset()
+
+    for t in range(max_steps):
+        action = policy(state, Q, epsilon)
+
+        next_state, reward, terminated, truncated, info = env.step(action)
+
+        trajectory.append((state,action,reward,next_state,(terminated or truncated)))
+
+        if terminated or truncated:
+            break
+        state = next_state
+    return np.array(trajectory, dtype= object)
