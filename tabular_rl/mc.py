@@ -1,5 +1,5 @@
 import numpy as np
-from tabular_rl.utils import decay_schedule,generate_trajectory
+from tabular_rl.utils import decay_schedule,generate_trajectory_control,generate_trajectory_prediction
 def mc_prediciton(pi,env,
                   gamma=1.0,
                   init_alpha=0.5,
@@ -20,7 +20,7 @@ def mc_prediciton(pi,env,
     V_track = np.zeros((n_episodes,n_States))
 
     for e in range(n_episodes):
-        trajectory = generate_trajectory(pi,env,max_steps)
+        trajectory = generate_trajectory_prediction(pi,env,max_steps)
         visited = np.zeros(n_States,dtype=np.bool)
 
         for t, (state,_,reward,_,_) in enumerate(trajectory):
@@ -38,3 +38,61 @@ def mc_prediciton(pi,env,
         V_track[e] = V
 
     return V.copy(),V_track
+
+
+def mc_control(env,
+               gamma=1.0,
+               init_alpha=0.5,
+               min_alpha=0.01,
+               alpha_decay_ratio=0.5,
+               init_epsilon=1.0,
+               min_epsilon=0.1,
+               epsilon_decay_ratio=0.9,
+               n_episodes=3000,
+               max_steps=200,
+               first_visit=True):
+        
+    n_states = env.observation_space.n
+    n_actions = env.action_space.n
+
+    discounts = gamma**np.arange(max_steps)
+
+    alphas = decay_schedule(init_alpha,min_alpha,alpha_decay_ratio,n_episodes)
+    epsilons = decay_schedule(init_epsilon,min_epsilon,epsilon_decay_ratio,n_episodes)
+
+    Q = np.zeros((n_states,n_actions), dtype=np.float64)
+    Q_track = np.zeros((n_episodes,n_states,n_actions), dtype = np.float64)
+    pi_track = []
+
+    def select_action(state,Q,epsilon):
+        if np.random.random() > epsilon:
+            return np.argmax(Q[state])
+        return np.random.randint(len(Q[state]))
+    
+    for e in range(n_episodes):
+        trajectory = generate_trajectory_control(select_action,Q,epsilons[e],env,max_steps)
+        visited = np.zeros((n_states,n_actions), dtype = bool)
+
+        for t,(state,action,reward,_,_) in enumerate(trajectory):
+            
+            if visited[state][action] and first_visit:
+                continue
+            visited[state][action] = True
+
+            rewards = [r[2] for r in trajectory[t:]]
+
+            rewards = np.array([r[2] for r in trajectory[t:]])
+            G = np.sum(rewards * discounts[:steps])
+
+            Q[state][action] = Q[state][action] + alphas[e]*\
+                                (G-Q[state][action])
+
+        Q_track[e] = Q
+        pi_track.append(np.argmax(Q,axis=1))
+
+    V = np.max(Q,axis=1)
+    pi = np.argmax(Q,axis=1)
+
+    return Q,V ,pi, Q_track, pi_track
+
+
