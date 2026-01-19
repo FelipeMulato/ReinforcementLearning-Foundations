@@ -81,7 +81,7 @@ def mc_control(env,
 
             rewards = [r[2] for r in trajectory[t:]]
 
-            rewards = np.array([r[2] for r in trajectory[t:]])
+            steps = len(rewards)    
             G = np.sum(rewards * discounts[:steps])
 
             Q[state][action] = Q[state][action] + alphas[e]*\
