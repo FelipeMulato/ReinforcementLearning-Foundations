@@ -1,5 +1,5 @@
 from collections import deque
-import numpy as np
+import random
 
 class ReplayMemory():
     def __init__(self,maxsize):
@@ -9,7 +9,7 @@ class ReplayMemory():
         self.memory.append(transition)
     
     def sample(self,sample_size):
-        return np.random.sample(self.memory, sample_size)
+        return random.sample(self.memory, sample_size)
     
     def __len__(self):
         return len(self.memory)

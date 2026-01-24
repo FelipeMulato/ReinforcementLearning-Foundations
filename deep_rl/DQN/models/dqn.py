@@ -7,7 +7,7 @@ class DQN(nn.Module):
         self.fc1 = nn.Linear(ninput,h1_nodes)
         self.out = nn.Linear(h1_nodes,out_actions)
     
-    def foward(self,x):
+    def forward(self,x):
         x = nn.functional.relu(self.fc1(x))
         x = self.out(x)
         return x
