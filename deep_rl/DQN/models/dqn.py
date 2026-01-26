@@ -1,5 +1,5 @@
 from torch import nn
-
+import torch.nn.functional as F
 class DQN(nn.Module):
     def __init__(self,ninput,h1_nodes,out_actions):
         super().__init__()
@@ -8,6 +8,6 @@ class DQN(nn.Module):
         self.out = nn.Linear(h1_nodes,out_actions)
     
     def forward(self,x):
-        x = nn.functional.relu(self.fc1(x))
+        x = F.relu(self.fc1(x))
         x = self.out(x)
         return x
