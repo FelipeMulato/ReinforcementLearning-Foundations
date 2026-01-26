@@ -5,9 +5,9 @@ name = "pypi"
 
 [packages]
 numpy = "*"
-gymnasium = "*"
 matplotlib = "*"
 torch = "*"
+gymnasium = {extras = ["box2d"], version = "*"}
 
 [dev-packages]
 
