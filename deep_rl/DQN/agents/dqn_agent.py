@@ -22,4 +22,29 @@ class DQNAgent:
     def store_transition(self, state, action,reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
     
+    def optimize_model(self):
+        if len(self.memory) < self.batch_size:
+            return
+        transitions = self.memory.sample(self.batch_size)
+
+        states, actions, rewards, next_states, dones = zip(*transitions)
+
+        states = torch.cat(states).to(self.device)
+        actions = torch.tensor(actions, device=self.device).unsqueeze(1)
+        rewards = torch.tensor(rewards, device=self.device)
+        next_states = torch.cat(next_states).to(self.device)
+        dones = torch.tensor(dones, device =self.device, dtype =torch.float32)
+
+        q_values =self.policy_net(states).gather(1,actions).squeeze(1)
+
+        with torch.no_grad():
+            next_q_values = self.target_net(next_states).max(1)[0]
+            td_target = rewards + self.gamma*next_q_values(1-dones)
+        
+        loss = F.mse_loss(q_values,td_target)
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+        
+
             
