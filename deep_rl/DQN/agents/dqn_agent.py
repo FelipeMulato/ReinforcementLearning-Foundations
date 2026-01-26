@@ -45,6 +45,10 @@ class DQNAgent:
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-        
+
+    def update_target_network(self):
+        self.target_net.load_state_dict(self.policy_net.state_dict())
+
+
 
             
