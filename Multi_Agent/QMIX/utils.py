@@ -3,7 +3,7 @@ import random
 import numpy as np
 def epsilon_greedy(q_values,epsilon):
     if random.random()<epsilon:
-        return random.randrange(q_values[0].shape)
+        return random.randrange(q_values.shape[0])
     return int(torch.argmax(q_values).item())
 
 def decay_schedule(init_value,min_value,
