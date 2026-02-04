@@ -1,9 +1,10 @@
-n_episodes=5000
+n_episodes=200
 gamma=0.99       
 lr=1e-3
 epsilon_start=1.0
-epsilon_end=0.05
+epsilon_end=0.2
 epsilon_decay=0.999
 hidden_dim=16
 mixing_hidden_dim=16
 print_every=500
+max_steps=25
