@@ -2,68 +2,103 @@ import torch
 from torch import nn
 import torch.optim as optim
 import torch.nn.functional as F
+from pettingzoo.mpe.simple_spread_v2 import env
+
 from Multi_Agent.QMIX import config
-from Multi_Agent.QMIX.Environments.cordenate import CordenateEnv
 from Multi_Agent.QMIX.Model.dqn import DQN
 from Multi_Agent.QMIX.Model.mixer import MIXER
 from Multi_Agent.QMIX.utils import decay_schedule,epsilon_greedy
+env = env(continuous_actions=False)
 
-n_agents = 2
-n_actions = 2
-obs_dim = 1
-state_dim = 1
+n_agents = 3
+n_actions = 5
+obs_dim = 18
+state_dim = 54
 
 agent_nets = nn.ModuleList([
+    DQN(obs_dim,config.hidden_dim,n_actions),
     DQN(obs_dim,config.hidden_dim,n_actions),
     DQN(obs_dim,config.hidden_dim,n_actions)
 ])
 
 mixer_net = MIXER(n_agents,state_dim,config.mixing_hidden_dim)
 
-env = CordenateEnv()
+
 
 params = list(agent_nets.parameters()) + list(mixer_net.parameters())
 opt = optim.Adam(params, lr=config.lr)
 
 epsilons = decay_schedule(config.epsilon_start,config.epsilon_end,config.epsilon_decay, config.n_episodes)
 
-sucess =0
-for e in range(1, config.n_episodes):
-    state = env.reset()
 
-    obs1 = env.to_obs(state)
-    obs2 = env.to_obs(state)
-    svec = env.to_state_vec(state)
+agent_id_map = {'agent_0':0, 'agent_1':1,'agent_2':2}
+reward_track = []
+for e in range(config.n_episodes):
+    episode_return = 0.0
+    env.reset()
+    for s in range(config.max_steps):
+        obs_buffer = [None]*n_agents
+        reward_buffer = []
+        action_buffer = [None]*n_agents
+        q_buffer = [None]*n_agents
+        for agent in env.agent_iter():
+            obs, reward, termination, truncation, info = env.last()
+            idx = agent_id_map[agent]
+            
+            if reward is not None:
+                episode_return +=reward
+                reward_buffer.append(reward)
+            if termination or truncation:
+                env.step(None)
+                continue
 
-    q1 = agent_nets[0](obs1)
-    q2 = agent_nets[1](obs2)
+            obs_t = torch.tensor(obs,dtype=torch.float32).unsqueeze(0)
+            q = agent_nets[idx](obs_t)
+            action = epsilon_greedy(q,epsilons[e])
 
-    a1 = epsilon_greedy(q1,epsilons[e])
-    a2 = epsilon_greedy(q2,epsilons[e])
+            obs_buffer[idx] = obs_t
+            action_buffer[idx] = action
+            q_buffer[idx] = q.gather(1,torch.tensor([[action]]))
 
-    next_state, reward, done = env.step(a1,a2)
+            env.step(action)
 
+            if env.agent_selection == env.agents[0] and None not in q_buffer:
+                q_values = torch.cat(q_buffer, dim=1)
+
+                state = torch.cat(obs_buffer, dim=1)
+
+                Q_tot = mixer_net(q_values,state)
+
+                target = sum(reward_buffer)
+
+                loss = F.mse_loss(Q_tot, torch.tensor([[target]],dtype=torch.float32))
+
+                opt.zero_grad()
+                loss.backward()
+                opt.step()
+
+                obs_buffer = [None]*n_agents
+                reward_buffer = []
+                action_buffer = [None]*n_agents
+                q_buffer = [None]*n_agents
     
-    states = svec.view(1, -1)
+    reward_track.append(episode_return)
 
-    agent_qs = torch.stack([q1[a1], q2[a2]]).unsqueeze(0)
-    q_tot = mixer_net(agent_qs, states).squeeze(-1)
+import matplotlib.pyplot as plt
+
+plt.plot(reward_track)
+plt.xlabel("Episode")
+plt.ylabel("Return")
+plt.title("QMIX on Simple Spread")
+plt.show()
+
 
         
-    target = torch.tensor([reward], dtype=torch.float32)
 
-    loss = F.mse_loss(q_tot, target)
+    
 
-    opt.zero_grad()
-    loss.backward()
-    opt.step()
 
-    if reward>0:
-        sucess +=1
    
-    if (e+1) % config.print_every==0:
-        print(f"current sucess rate:{sucess/config.print_every}")
-        sucess=0
 
 
 
