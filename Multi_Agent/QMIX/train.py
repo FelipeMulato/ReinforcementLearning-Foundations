@@ -1,105 +1,65 @@
 import torch
+import copy
+import numpy as np
 from torch import nn
 import torch.optim as optim
 import torch.nn.functional as F
-from pettingzoo.mpe.simple_spread_v2 import env
+from pettingzoo.mpe.simple_spread_v2 import env as mpe_env
+import copy
 
 from Multi_Agent.QMIX import config
 from Multi_Agent.QMIX.Model.dqn import DQN
 from Multi_Agent.QMIX.Model.mixer import MIXER
-from Multi_Agent.QMIX.utils import decay_schedule,epsilon_greedy
-env = env(continuous_actions=False)
+from Multi_Agent.QMIX.Model.replaybuffer import ReplayBuffer
+from Multi_Agent.QMIX.utils import decay_schedule
+from Multi_Agent.QMIX.batch import optimize_batch
+from Multi_Agent.QMIX.joint_step import collect_joint_step
 
-n_agents = 3
-n_actions = 5
-obs_dim = 18
-state_dim = 54
-
-agent_nets = nn.ModuleList([
-    DQN(obs_dim,config.hidden_dim,n_actions),
-    DQN(obs_dim,config.hidden_dim,n_actions),
-    DQN(obs_dim,config.hidden_dim,n_actions)
-])
-
-mixer_net = MIXER(n_agents,state_dim,config.mixing_hidden_dim)
-
-
-
-params = list(agent_nets.parameters()) + list(mixer_net.parameters())
-opt = optim.Adam(params, lr=config.lr)
-
-epsilons = decay_schedule(config.epsilon_start,config.epsilon_end,config.epsilon_decay, config.n_episodes)
-
-
-agent_id_map = {'agent_0':0, 'agent_1':1,'agent_2':2}
-reward_track = []
-for e in range(config.n_episodes):
-    episode_return = 0.0
+def train():
+    cfg = config
+    env = mpe_env(continuous_actions=False)
     env.reset()
-    for s in range(config.max_steps):
-        obs_buffer = [None]*n_agents
-        reward_buffer = []
-        action_buffer = [None]*n_agents
-        q_buffer = [None]*n_agents
-        for agent in env.agent_iter():
-            obs, reward, termination, truncation, info = env.last()
-            idx = agent_id_map[agent]
-            
-            if reward is not None:
-                episode_return +=reward
-                reward_buffer.append(reward)
-            if termination or truncation:
-                env.step(None)
-                continue
+    agent_id_map = {a: i for i, a in enumerate(env.agents)}
 
-            obs_t = torch.tensor(obs,dtype=torch.float32).unsqueeze(0)
-            q = agent_nets[idx](obs_t)
-            action = epsilon_greedy(q,epsilons[e])
+    agent_nets = nn.ModuleList([DQN(cfg.obs_dim, cfg.hidden_dim, cfg.n_actions) for _ in range(cfg.n_agents)])
+    mixer = MIXER(cfg.n_agents, cfg.state_dim, cfg.mixing_hidden_dim)
 
-            obs_buffer[idx] = obs_t
-            action_buffer[idx] = action
-            q_buffer[idx] = q.gather(1,torch.tensor([[action]]))
+    agent_targets = copy.deepcopy(agent_nets)
+    mixer_target = copy.deepcopy(mixer)
 
-            env.step(action)
+    optimizer = optim.Adam(list(agent_nets.parameters()) + list(mixer.parameters()), lr=cfg.lr)
+    buffer = ReplayBuffer(cfg.buffer_size)
 
-            if env.agent_selection == env.agents[0] and None not in q_buffer:
-                q_values = torch.cat(q_buffer, dim=1)
+    step_count = 0
+    returns = []
 
-                state = torch.cat(obs_buffer, dim=1)
+    epsilons = decay_schedule(cfg.epsilon_start,cfg.epsilon_end,cfg.epsilon_decay,cfg.n_episodes)
 
-                Q_tot = mixer_net(q_values,state)
-
-                target = sum(reward_buffer)
-
-                loss = F.mse_loss(Q_tot, torch.tensor([[target]],dtype=torch.float32))
-
-                opt.zero_grad()
-                loss.backward()
-                opt.step()
-
-                obs_buffer = [None]*n_agents
-                reward_buffer = []
-                action_buffer = [None]*n_agents
-                q_buffer = [None]*n_agents
-    
-    reward_track.append(episode_return)
-
-import matplotlib.pyplot as plt
-
-plt.plot(reward_track)
-plt.xlabel("Episode")
-plt.ylabel("Return")
-plt.title("QMIX on Simple Spread")
-plt.show()
-
-
+    for ep in range(cfg.n_episodes):
+        env.reset()
+        ep_ret = 0.0
         
 
-    
+        for _ in range(cfg.max_steps):
+            tr = collect_joint_step(env, agent_nets, epsilons[ep], agent_id_map, cfg)
+            buffer.push(tr)
+            ep_ret += tr[3].item()
 
+            if len(buffer) >= cfg.batch_size:
+                optimize_batch(buffer, agent_nets, mixer, agent_targets, mixer_target, optimizer, cfg)
 
-   
+            step_count += 1
+            if step_count % cfg.target_update_interval == 0:
+                agent_targets = copy.deepcopy(agent_nets)
+                mixer_target = copy.deepcopy(mixer)
 
+            if tr[-1].item():
+                break
 
+        returns.append(ep_ret)
+        if ep % 50 == 0:
+            print(f"Episode {ep}, Return {np.mean(returns[-10:]):.2f}")
 
+    return returns
 
+train()
