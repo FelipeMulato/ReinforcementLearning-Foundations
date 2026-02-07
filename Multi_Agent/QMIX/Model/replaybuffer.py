@@ -1,4 +1,5 @@
 from collections import deque
+import torch
 import random
 class ReplayBuffer:
     def __init__(self,capacity):
