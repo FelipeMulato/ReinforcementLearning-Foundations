@@ -1,9 +1,10 @@
 import torch
+import numpy as np
 from Multi_Agent.QMIX.utils import epsilon_greedy
 def collect_joint_step(env, agent_nets, epsilon, agent_id_map, cfg):
 
     obs_all = [env.observe(a) for a in env.agents]
-    obs_all = torch.tensor(obs_all, dtype=torch.float32, device = cfg.device)
+    obs_all = torch.from_numpy(np.array(obs_all)).float()
 
 
     actions =[]
@@ -29,15 +30,17 @@ def collect_joint_step(env, agent_nets, epsilon, agent_id_map, cfg):
         else:
             env.step(actions[idx].item())
 
-   
-    next_obs_all = [env.observe(a) for a in env.agents]
-    next_obs_all = torch.tensor(next_obs_all, dtype=torch.float32, device=cfg.device)
-
     state = obs_all.view(1, -1)
-    next_state = next_obs_all.view(1, -1)
-
     reward = torch.tensor([[total_reward]], dtype=torch.float32, device=cfg.device)
     done = torch.tensor([[done]], dtype=torch.float32, device=cfg.device)
+    if done:
+        next_obs_all = torch.zeros_like(obs_all)
+        next_state = torch.zeros_like(state)
+    else:
+        next_obs_all = [env.observe(a) for a in env.agents]
+        next_obs_all = torch.from_numpy(np.array(next_obs_all)).float().to(cfg.device)
+        next_state = next_obs_all.view(1, -1)
 
     return obs_all, state, actions, reward, next_obs_all, next_state, done
+    
 
